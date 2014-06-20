@@ -1,0 +1,32 @@
+{
+  "name": "keybase-blockchain",
+  "version": "0.0.0",
+  "description": "Read a user's Keybase sigchain out of the bitcoin blockchain",
+  "main": "lib/main.js",
+  "scripts": {
+    "test": "make test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/keybase/blockchain"
+  },
+  "keywords": [
+    "Bitcoin",
+    "blockchain",
+    "keybase"
+  ],
+  "author": "Maxwell Krohn",
+  "license": "BSD-3-Clause",
+  "bugs": {
+    "url": "https://github.com/keybase/blockchain/issues"
+  },
+  "homepage": "https://github.com/keybase/blockchain",
+  "dependencies": {
+    "bitcoyne": ">=0.0.5",
+    "bn": "^1.0.1",
+    "iced-error": "0.0.9",
+    "iced-runtime": "^1.0.0",
+    "kbpgp": "^0.1.22",
+    "pgp-utils": "0.0.23"
+  }
+}
