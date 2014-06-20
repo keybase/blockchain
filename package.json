@@ -22,16 +22,14 @@
   },
   "homepage": "https://github.com/keybase/blockchain",
   "dependencies": {
-    "bitcoyne": ">=0.0.5",
     "bn": "^1.0.1",
     "deep-equal": "^0.2.1",
     "iced-error": "0.0.9",
     "iced-runtime": "^1.0.0",
     "iced-utils": "^0.1.19",
-    "kbpgp": "^0.1.22",
+    "keybase-bitcoinjs-lib": "^0.2.0-2",
     "merkle-tree": ">=0.0.12",
-    "pgp-utils": "^0.0.23",
-    "triplesec": "^3.0.17"
+    "pgp-utils": "^0.0.23"
   },
   "devDependencies": {
     "iced-coffee-script": "^1.7.1-f",
