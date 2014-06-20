@@ -32,5 +32,10 @@
     "merkle-tree": ">=0.0.12",
     "pgp-utils": "^0.0.23",
     "triplesec": "^3.0.17"
+  },
+  "devDependencies": {
+    "iced-coffee-script": "^1.7.1-f",
+    "iced-test": "0.0.17",
+    "minimist": "^0.2.0"
   }
 }
