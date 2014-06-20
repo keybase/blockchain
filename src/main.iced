@@ -114,11 +114,29 @@ exports.Blockchain = class Blockchain extends merkle.Base
 
   #--------------------------------
 
+  lookup_root : (cb) ->
+    cb null, @root_hash
+
+  #--------------------------------
+
+  lookup_node : ({key}, cb) ->
+    url = @kburl "merkle/block"
+    await @req { url, qs : {hash : key }}, defer err, res, json
+    if err? then # noop
+    else if not ( node = json.value)? then err = new Error "bad block returned: #{key}"
+    cb err, node
+    
+  #--------------------------------
+
+  find_in_keybase_merkle_tree : (cb) ->
+
+  #--------------------------------
+
   run : (cb) ->
     esc = make_esc cb, "Blockchain::run"
     await @lookup_btc_blockchain esc defer()
-    await @lookup_verify_merkle_root esc defer()
     await @translate_address esc defer()
+    await @lookup_verify_merkle_root esc defer()
     await @find_in_keybase_merkle_tree esc defer()
     await @lookup_user esc defer user
     cb null, user
