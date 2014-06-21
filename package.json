@@ -33,6 +33,7 @@
   },
   "devDependencies": {
     "iced-coffee-script": "^1.7.1-f",
+    "iced-logger": "0.0.5",
     "iced-test": "0.0.17",
     "minimist": "^0.2.0",
     "request": "^2.36.0"

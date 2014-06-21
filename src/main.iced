@@ -47,7 +47,7 @@ exports.Blockchain = class Blockchain extends merkle.Base
 
   #--------------------------------
 
-  constructor : ({$, request, @username, @address}) ->
+  constructor : ({$, request, @username, @address, @log}) ->
     @address or= "1HUCBSJeHnkhzrVKVjaVmWg2QtZS1mdfaz"
     @req = if $ then jquery_to_req($) else request_to_req(request)
     # We can use the merkle class with the default parameters....
@@ -64,8 +64,11 @@ exports.Blockchain = class Blockchain extends merkle.Base
       for tx in json.txs when (tx.inputs[0]?.prev_out?.addr is @address)
         @to_addr = tx.out[0].addr
         break
-      unless @to_addr?
+      if @to_addr?
+        @log?.info "Got BTC to address: #{@to_addr}"
+      else
         err = new Error "Didn't find any announcements from #{@address}; something is up!"
+
     cb err
 
   #--------------------------------
@@ -78,6 +81,7 @@ exports.Blockchain = class Blockchain extends merkle.Base
         err = new Error "Bad address #{@to_addr}; wasn't BTC"
       else
         @to_addr_hash = hash
+        @log?.info " to hash -> #{hash.toString('hex')}"
     catch e
       err = new Error "Bad address #{@to_addr}: #{e.message}"
     cb err
@@ -108,7 +112,6 @@ exports.Blockchain = class Blockchain extends merkle.Base
         else
           try
             js = JSON.parse x[1]
-            console.log js
             unless (@root_hash = js.body?.root)?
               err = new Error "Didn't find a root hash"
           catch e
@@ -127,6 +130,7 @@ exports.Blockchain = class Blockchain extends merkle.Base
   #--------------------------------
 
   lookup_node : ({key}, cb) ->
+    @log?.info "Lookup merkle node #{key}"
     url = @kburl "merkle/block"
     await @req { url, qs : {hash : key }}, defer err, res, json
     if err? then # noop
@@ -137,14 +141,16 @@ exports.Blockchain = class Blockchain extends merkle.Base
   #--------------------------------
 
   lookup_userid : (cb) ->
+    @log?.debug "+ lookup userid #{@username}"
     url = @kburl "user/lookup"
     await @req { url, qs : { @username } }, defer err, res, json
     err = if err? then err
     else if (n = json.status.name) isnt 'OK' then new Error "API error: #{n}"
     else if not (@uid = json.them.id)? then new Error "bad user object; no UID"
     else null
+    @log.info "Map: #{@username} -> #{@uid}"
+    @log?.debug "- lookup userid"
     cb err
-
 
   #--------------------------------
 
@@ -162,7 +168,9 @@ exports.Blockchain = class Blockchain extends merkle.Base
     else if not (@chain = json.sigs)? then new Error "no signatures found"
     else if not (last = @chain[-1...]?[0])? then new Error "no last signature"
     else if ((a = last.payload_hash) isnt (b = @user_triple[1])) then new Error "Bad hash: #{a} != #{b}"
-    else null
+    else 
+      @log?.info "User triple: #{JSON.stringify @user_triple}"
+      null
     cb err
 
   #--------------------------------
@@ -170,7 +178,7 @@ exports.Blockchain = class Blockchain extends merkle.Base
   check_chain : (cb) ->
     err = null
     for link,i in @chain
-      if not streq_secure(btcjs.crypto.sha256(link.payload_json), link.payload_hash)
+      if not streq_secure(btcjs.crypto.sha256(link.payload_json).toString('hex'), link.payload_hash)
         err = new Error "hash mismatch at link #{i}"
       try
         link.payload = JSON.parse link.payload_json
@@ -179,6 +187,8 @@ exports.Blockchain = class Blockchain extends merkle.Base
       catch e
         err = new Error "failed to parse link #{i}: #{e.message}"
       break if err
+    unless err?
+      @log?.info "Chain checked out"
     cb err
 
   #--------------------------------
@@ -199,10 +209,11 @@ exports.Blockchain = class Blockchain extends merkle.Base
 main = (cb) ->
   username = process.argv[2]
   request = require 'request'
-  blockchain = new Blockchain {request, username }
+  log = require 'iced-logger'
+  blockchain = new Blockchain {request, username, log }
   await blockchain.run defer err, chain
   console.log err
-  console.log chain
+  console.log chain[-1...][0].payload
   cb()
 
 #=============================================================================================
