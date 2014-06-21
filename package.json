@@ -27,13 +27,14 @@
     "iced-error": "0.0.9",
     "iced-runtime": "^1.0.0",
     "iced-utils": "^0.1.19",
-    "keybase-bitcoinjs-lib": "^0.2.0-2",
+    "keybase-bitcoinjs-lib": "^0.2.0-3",
     "merkle-tree": ">=0.0.12",
     "pgp-utils": "^0.0.23"
   },
   "devDependencies": {
     "iced-coffee-script": "^1.7.1-f",
     "iced-test": "0.0.17",
-    "minimist": "^0.2.0"
+    "minimist": "^0.2.0",
+    "request": "^2.36.0"
   }
 }

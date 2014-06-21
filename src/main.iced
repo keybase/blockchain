@@ -1,9 +1,8 @@
-
 {make_esc} = require 'iced-error'
-btcjs = require 'keybase-bitcoin-js'
+btcjs = require 'keybase-bitcoinjs-lib'
 merkle = require 'merkle-tree'
 {armor} = require 'pgp-utils'
-iutils = require('iced-util').util
+{bufeq_secure,streq_secure} = require('iced-utils').util
 
 #=============================================================================================
 
@@ -51,6 +50,8 @@ exports.Blockchain = class Blockchain extends merkle.Base
   constructor : ({$, request, @username, @address}) ->
     @address or= "1HUCBSJeHnkhzrVKVjaVmWg2QtZS1mdfaz"
     @req = if $ then jquery_to_req($) else request_to_req(request)
+    # We can use the merkle class with the default parameters....
+    super {}
 
   #--------------------------------
 
@@ -60,7 +61,7 @@ exports.Blockchain = class Blockchain extends merkle.Base
     unless err?
       # There might be transactions sent TO our special address,
       # so we have to skip over those to the first FROM transaction
-      for tx in json.txs where tx.in[0].addr is @address
+      for tx in json.txs when (tx.inputs[0]?.prev_out?.addr is @address)
         @to_addr = tx.out[0].addr
         break
       unless @to_addr?
@@ -100,17 +101,23 @@ exports.Blockchain = class Blockchain extends merkle.Base
       if not err?
         h2 = btcjs.crypto.hash160(m.body)
         # Secure buffer comparison isn't really needed here, but why not.
-        if not iutils.bufeq_secure h2, @to_addr_hash
+        if not bufeq_secure h2, @to_addr_hash
           err = new Error 'hash mismatch at root'
         else if not (x = m.body.toString('utf8').match /(\{"body":.*?"signature"\})/)
           err = new Error "Can't scrape a JSON body out of the PGP signature"
         else
           try
             js = JSON.parse x[1]
-            @root_hash = js.root
+            console.log js
+            unless (@root_hash = js.body?.root)?
+              err = new Error "Didn't find a root hash"
           catch e
             err = new Error "Can't JSON parse payload: #{e.message}"
     cb err
+
+  #--------------------------------
+
+  hash_fn : (s) -> btcjs.crypto.sha512(s).toString('hex')
 
   #--------------------------------
 
@@ -123,12 +130,56 @@ exports.Blockchain = class Blockchain extends merkle.Base
     url = @kburl "merkle/block"
     await @req { url, qs : {hash : key }}, defer err, res, json
     if err? then # noop
-    else if not ( node = json.value)? then err = new Error "bad block returned: #{key}"
+    else if (n = json.status.name) isnt 'OK' then err = new Error "API error: #{n}"
+    else if not (node = json.value)? then err = new Error "bad block returned: #{key}"
     cb err, node
-    
+
+  #--------------------------------
+
+  lookup_userid : (cb) ->
+    url = @kburl "user/lookup"
+    await @req { url, qs : { @username } }, defer err, res, json
+    err = if err? then err
+    else if (n = json.status.name) isnt 'OK' then new Error "API error: #{n}"
+    else if not (@uid = json.them.id)? then new Error "bad user object; no UID"
+    else null
+    cb err
+
+
   #--------------------------------
 
   find_in_keybase_merkle_tree : (cb) ->
+    await @find { key : @uid }, defer err, @user_triple
+    cb err
+
+  #--------------------------------
+
+  lookup_user : (cb) ->
+    url = @kburl "sig/get"
+    await @req { url, qs : {@uid }}, defer err, res, json
+    err = if err? then err
+    else if (n = json.status.name) isnt 'OK' then new Error "API error: #{n}"
+    else if not (@chain = json.sigs)? then new Error "no signatures found"
+    else if not (last = @chain[-1...]?[0])? then new Error "no last signature"
+    else if ((a = last.payload_hash) isnt (b = @user_triple[1])) then new Error "Bad hash: #{a} != #{b}"
+    else null
+    cb err
+
+  #--------------------------------
+
+  check_chain : (cb) ->
+    err = null
+    for link,i in @chain
+      if not streq_secure(btcjs.crypto.sha256(link.payload_json), link.payload_hash)
+        err = new Error "hash mismatch at link #{i}"
+      try
+        link.payload = JSON.parse link.payload_json
+        if i > 0 and not streq_secure(link.payload.prev, @chain[i-1].payload_hash)
+          err = new Error "bad previous hash at link #{i}"
+      catch e
+        err = new Error "failed to parse link #{i}: #{e.message}"
+      break if err
+    cb err
 
   #--------------------------------
 
@@ -137,9 +188,26 @@ exports.Blockchain = class Blockchain extends merkle.Base
     await @lookup_btc_blockchain esc defer()
     await @translate_address esc defer()
     await @lookup_verify_merkle_root esc defer()
+    await @lookup_userid esc defer()
     await @find_in_keybase_merkle_tree esc defer()
-    await @lookup_user esc defer user
-    cb null, user
+    await @lookup_user esc defer()
+    await @check_chain esc defer()
+    cb null, @chain
 
 #=============================================================================================
+
+main = (cb) ->
+  username = process.argv[2]
+  request = require 'request'
+  blockchain = new Blockchain {request, username }
+  await blockchain.run defer err, chain
+  console.log err
+  console.log chain
+  cb()
+
+#=============================================================================================
+
+await main defer err
+process.exit(0)
+
 
