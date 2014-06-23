@@ -32,6 +32,7 @@
     "pgp-utils": "^0.0.23"
   },
   "devDependencies": {
+    "browserify": "^4.1.11",
     "iced-coffee-script": "^1.7.1-f",
     "iced-logger": "0.0.5",
     "iced-test": "0.0.17",

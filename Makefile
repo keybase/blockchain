@@ -2,6 +2,8 @@ ICED=node_modules/.bin/iced
 BUILD_STAMP=build-stamp
 TEST_STAMP=test-stamp
 WD=`pwd`
+BROWSERIFY=node_modules/.bin/browserify
+BROWSER=browser/blockchain.js
 
 default: build
 all: build
@@ -15,6 +17,11 @@ $(BUILD_STAMP): \
 	lib/browser.js
 	date > $@
 
+$(BROWSER): lib/browser.js
+	$(BROWSERIFY) -s blockchain $< > $@
+
+browser: $(BROWSER)
+
 build: $(BUILD_STAMP) 
 
 clean:
@@ -26,4 +33,4 @@ test:
 setup:
 	npm install -d
 
-.PHONY: clean setup test  test-browser
+.PHONY: clean setup test test-browser browser

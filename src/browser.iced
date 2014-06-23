@@ -29,7 +29,7 @@ jquery_to_req = ($) ->
 
 #=============================================================================================
 
-class Blockchain extends base.Blockchain
+exports.Blockchain = class Blockchain extends base.Blockchain
 
   constructor : (arg) ->
     arg.req = jquery_to_req($)
