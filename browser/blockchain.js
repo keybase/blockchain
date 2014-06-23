@@ -525,6 +525,7 @@
     return function(_arg, cb) {
       var error, finish, qs, success, url;
       url = _arg.url, qs = _arg.qs;
+      qs.cors = 'true';
       success = function(body, status, jqXHR) {
         return finish(true, body, jqXHR);
       };

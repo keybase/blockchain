@@ -4,31 +4,7 @@ merkle = require 'merkle-tree'
 {armor} = require 'pgp-utils'
 {bufeq_secure,streq_secure} = require('iced-utils').util
 
-#=============================================================================================
 
-jquery_to_req = ($) ->
-  ({url,qs}, cb) ->
-
-    success = (body, status, jqXHR) -> finish true, body, jqXHR
-    error   = (jqXHR, textStatus, erroThrown) -> finish false, null, jqXHR
-
-    finish = (success, body, jqXHR) ->
-      return unless (tmp = cb)?
-      cb = null
-      err = null
-      res = {}
-
-      if (res.statusCode = jqXHR.status) isnt 200
-        err = new Error "Non-OK HTTP error: #{res.statusCode}"
-        body = null
-      else
-        try
-          body = JSON.parse body
-        catch e
-          err = new Error "bad json: #{e.message}"
-      tmp err, res, body
-
-    $.ajax {type : "GET", data : qs, url, success, error }
 
 #=============================================================================================
 
@@ -43,9 +19,63 @@ exports.Blockchain = class Blockchain extends merkle.Base
 
   #--------------------------------
 
-  lookup_btc_blockchain : (cb) ->
+  blockr_req : ({endpoint, qs}, cb) ->
+    url = "https://btc.blockr.io/api/v1/#{endpoint}"
+    await @req { url, qs }, defer err, res, json
+    if err? then # noop
+    else if (s = json.status) isnt "success" then err = new Error "Bad status code: #{s}"
+    cb err, json
+
+  #--------------------------------
+
+  lookup_last_tx_from_addr_blockr_io : (cb) ->
+    endpoint = "address/txs/#{@address}"
+    await @blockr_req { endpoint }, defer err, json
+    err = if err? then err
+    else if ((a = json?.data?.address) isnt (b = @address))
+      new Error "Got wrong address: #{a} != #{b}"
+    else if not (v = json.data.txs)?
+      new Error "No transactions found"
+    else
+      for tx in v when (tx.amount < 0)
+        @txid = tx.tx
+        break
+      if not @txid
+        new Error "No transaction found from #{@address}; something is up!"
+      else
+        @log?.info "Most recent TX from #{@address} is #{@txid}"
+        null
+    cb err
+
+  #--------------------------------
+
+  lookup_tx_blockr_io : (cb) ->
+    endpoint = "tx/info/#{@txid}"
+    await @blockr_req { endpoint }, defer err, json
+    err = if err? then err
+    else if ((t = json?.data?.tx) isnt @txid) 
+      new Error "Got wrong transaction: #{t} != #{@txid}"
+    else if not(v = json.data.vouts)? or (v.length isnt 1)
+      new Error "Got a weird transaction back from blockr.io"
+    else 
+      @to_addr = v[0].address
+      @log?.info "Got BTC to address: #{@to_addr}"
+      null
+    cb err
+
+  #--------------------------------
+
+  lookup_btc_blockr_io : (cb) ->
+    esc = make_esc cb, "Blockchain::lookup_btc_blockr"
+    await @lookup_last_tx_from_addr_blockr_io esc defer()
+    await @lookup_tx_blockr_io esc defer()
+    cb null
+
+  #--------------------------------
+
+  lookup_btc_blockchain_info : (cb) ->
     url = "https://blockchain.info/address/#{@address}"
-    await @req { url, qs : { format : 'json'} }, defer err, res, json
+    await @req { url, qs : { format : 'json', cors : 'true'} }, defer err, res, json
     unless err?
       # There might be transactions sent TO our special address,
       # so we have to skip over those to the first FROM transaction
@@ -183,7 +213,7 @@ exports.Blockchain = class Blockchain extends merkle.Base
 
   run : (cb) ->
     esc = make_esc cb, "Blockchain::run"
-    await @lookup_btc_blockchain esc defer()
+    await @lookup_btc_blockr_io esc defer()
     await @translate_address esc defer()
     await @lookup_verify_merkle_root esc defer()
     await @lookup_userid esc defer()
