@@ -6,7 +6,7 @@ merkle = require 'merkle-tree'
 
 #=============================================================================================
 
-jquery_to_request = ($) ->
+jquery_to_req = ($) ->
   ({url,qs}, cb) ->
 
     success = (body, status, jqXHR) -> finish true, body, jqXHR
@@ -32,24 +32,12 @@ jquery_to_request = ($) ->
 
 #=============================================================================================
 
-request_to_req = (request, cb) ->
-  (params, cb) ->
-    params.json = true
-    await request params, defer err, res, body
-    if res.statusCode != 200
-      err = new Error "Non-OK HTTP error: #{res.statusCode}"
-      body = null
-    cb err, res, body
-
-#=============================================================================================
-
 exports.Blockchain = class Blockchain extends merkle.Base
 
   #--------------------------------
 
-  constructor : ({$, request, @username, @address, @log}) ->
+  constructor : ({@req, @username, @address, @log}) ->
     @address or= "1HUCBSJeHnkhzrVKVjaVmWg2QtZS1mdfaz"
-    @req = if $ then jquery_to_req($) else request_to_req(request)
     # We can use the merkle class with the default parameters....
     super {}
 
@@ -205,20 +193,3 @@ exports.Blockchain = class Blockchain extends merkle.Base
     cb null, @chain
 
 #=============================================================================================
-
-main = (cb) ->
-  username = process.argv[2]
-  request = require 'request'
-  log = require 'iced-logger'
-  blockchain = new Blockchain {request, username, log }
-  await blockchain.run defer err, chain
-  console.log err
-  console.log chain[-1...][0].payload
-  cb()
-
-#=============================================================================================
-
-await main defer err
-process.exit(0)
-
-
