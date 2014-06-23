@@ -166,7 +166,7 @@ exports.Blockchain = class Blockchain extends merkle.Base
     else if (n = json.status.name) isnt 'OK' then new Error "API error: #{n}"
     else if not (@uid = json.them.id)? then new Error "bad user object; no UID"
     else null
-    @log.info "Map: #{@username} -> #{@uid}"
+    @log?.info "Map: #{@username} -> #{@uid}"
     @log?.debug "- lookup userid"
     cb err
 
