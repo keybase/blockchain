@@ -1,0 +1,56 @@
+<html>
+  <head>
+    <title>Blockchain Tester</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script src="./browser/blockchain.js"></script>
+    <script>
+$(function() {
+  $("body").on("click", "#input-submit", function () {
+    function logfn (level, msg) {
+      append("#div-progress", "<b>" + level + "</b>: " + msg);
+    }
+    function append(div, text) {
+      $(div).append("<span><p>" + text + "</p></span>");
+    }
+    var log = {
+      info : function (msg) { logfn("info", msg); },
+      debug : function (msg) { logfn("debug", msg); }
+    }
+    console.log("ok, runnning...");
+    var obj = new blockchain.Blockchain({username: $("#input-username").val(), log : log });
+    obj.run(function(err, res) {
+      console.log("done");
+      if (err) {
+        append("#div-error", err);
+      } else {
+        $("#div-result").append(JSON.stringify(res));
+      }
+    });
+  });
+});
+    </script>
+  </head>
+  <body>
+  <div>
+  <input placeholder="username" id="input-username" type="text"></input>
+  <button id="input-submit">Submit</button>
+  </div>
+  <table border=2>
+   <tr>
+     <td>Progress</td>
+     <td><div id="div-progress"></div></td>
+   </tr>
+   <tr>
+    <td>Results</td>
+    <td><div id="div-result"></div></td>
+  </tr>
+  <tr>
+    <td>Errors</td>
+    <td><div id="div-error"></div>
+    </td>
+    </tr>
+  </table>
+  </body>
+</html>
+
+
