@@ -5,6 +5,11 @@ merkle = require 'merkle-tree'
 {bufeq_secure,streq_secure} = require('iced-utils').util
 
 
+get_hash_from_triple = (user_triple) ->
+  switch user_triple[0]
+    when 1 then user_triple[1]
+    when 2 then user_triple[1][1]
+    else "<unknown leaf version>"
 
 #=============================================================================================
 
@@ -185,7 +190,7 @@ exports.Blockchain = class Blockchain extends merkle.Base
     else if (n = json.status.name) isnt 'OK' then new Error "API error: #{n}"
     else if not (@chain = json.sigs)? then new Error "no signatures found"
     else if not (last = @chain[-1...]?[0])? then new Error "no last signature"
-    else if ((a = last.payload_hash) isnt (b = @user_triple[1])) then new Error "Bad hash: #{a} != #{b}"
+    else if ((a = last.payload_hash) isnt (b = get_hash_from_triple(@user_triple))) then new Error "Bad hash: #{a} != #{b}"
     else 
       @log?.info "User triple: #{JSON.stringify @user_triple}"
       null
